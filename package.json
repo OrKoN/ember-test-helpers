@@ -30,5 +30,11 @@
     "ember-cli-release": "^0.2.4",
     "ember-try": "0.0.8",
     "testem": "^0.6.19"
+  },
+  "jspm": {
+    "dependencies": {
+      "ember": "*",
+      "klassy": "github:cerebris/klassy.js"
+    }
   }
 }
