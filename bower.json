@@ -1,6 +1,6 @@
 {
   "name": "ember-test-helpers",
-  "version": "0.5.8",
+  "version": "0.5.16",
   "authors": [
     "Dan Gebhardt",
     "Robert Jackson",
@@ -29,8 +29,8 @@
   },
   "devDependencies": {
     "qunit": "^1.15.0",
-    "ember-data": "canary",
-    "pretender": "^0.7.0",
+    "ember-data": "1.13.9",
+    "pretender": "~0.10.1",
     "loader.js": "ember-cli/loader.js#3.0.0",
     "ember-cli-shims": "ember-cli/ember-cli-shims#0.0.3",
     "ember-cli-test-loader": "rwjblue/ember-cli-test-loader#0.0.4",

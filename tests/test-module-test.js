@@ -1,4 +1,6 @@
+import Ember from 'ember';
 import { TestModule, getContext } from 'ember-test-helpers';
+import hasEmberVersion from 'ember-test-helpers/has-ember-version';
 import test from 'tests/test-support/qunit-test';
 import qunitModuleFor from 'tests/test-support/qunit-module-for';
 import { setResolverRegistry } from 'tests/test-support/resolver';
@@ -11,7 +13,14 @@ function moduleFor(fullName, description, callbacks) {
 function setupRegistry() {
   setResolverRegistry({
     'component:x-foo':           Ember.Component.extend(),
-    'component:not-the-subject': Ember.Component.extend()
+    'component:not-the-subject': Ember.Component.extend(),
+    'foo:thing': Ember.Object.extend({
+      fromDefaultRegistry: true
+    }),
+    'service:other-thing': Ember.Object.extend({
+      fromDefaultRegistry: true
+    })
+
   });
 }
 
@@ -70,8 +79,7 @@ moduleFor('component:x-foo', 'component:x-foo -- setup context', {
       name: 'Max'
     });
 
-    var thingToRegisterWith = this.registry || this.container;
-    thingToRegisterWith.register('service:blah', Ember.Object.extend({
+    this.register('service:blah', Ember.Object.extend({
       purpose: 'blabering'
     }));
   }
@@ -82,9 +90,8 @@ test("subject can be initialized in setup", function() {
 });
 
 test("can lookup factory registered in setup", function() {
-  var service = this.container.lookup('service:blah');
-
-  equal(service.get('purpose'), 'blabering');
+  this.inject.service('blah');
+  equal(Ember.get(this, 'blah.purpose'), 'blabering');
 });
 
 moduleFor('component:x-foo', 'component:x-foo -- callback context', {
@@ -176,3 +183,85 @@ test("throws an error when declaring integration: true and needs in the same mod
 
   ok(result, "should throw an Error when integration: true and needs are provided");
 });
+
+if (hasEmberVersion(1,11)) {
+  moduleFor('component:x-foo', 'should be able to override factories in integration mode', {
+    beforeSetup: function() {
+      setupRegistry();
+    },
+
+    integration: true
+  });
+
+  test('gets the default by default', function() {
+    var thing = this.container.lookup('foo:thing');
+
+    ok(thing.fromDefaultRegistry, 'found from the default registry');
+  });
+
+  test('can override the default', function() {
+    this.register('foo:thing', Ember.Object.extend({
+      notTheDefault: true
+    }));
+    var thing = this.container.lookup('foo:thing');
+
+    ok(!thing.fromDefaultRegistry, 'should not be found from the default registry');
+    ok(thing.notTheDefault, 'found from the overridden factory');
+  });
+
+  test('gets the default with fullName normalization by default', function() {
+    this.register('foo:needs-service', Ember.Object.extend({
+      otherThing: Ember.inject.service()
+    }));
+
+    var foo = this.container.lookup('foo:needs-service');
+    var thing = foo.get('otherThing');
+
+    ok(thing.fromDefaultRegistry, 'found from the default registry');
+  });
+
+  test('can override the default with fullName normalization', function() {
+    this.register('service:other-thing', Ember.Object.extend({
+      notTheDefault: true
+    }));
+
+    this.register('foo:needs-service', Ember.Object.extend({
+      otherThing: Ember.inject.service()
+    }));
+
+    var foo = this.container.lookup('foo:needs-service');
+    var thing = foo.get('otherThing');
+
+    ok(!thing.fromDefaultRegistry, 'should not be found from the default registry');
+    ok(thing.notTheDefault, 'found from the overridden factory');
+  });
+}
+
+if (Ember.getOwner) {
+  // this conditional should be changed to `hasEmberVersion` once
+  // `ember-container-inject-owner` lands in a stable version
+
+  moduleFor('foo:thing', 'should be able to use `getOwner` on instances', {
+    beforeSetup: function() {
+      setupRegistry();
+    },
+
+    integration: true
+  });
+
+  test('instances get an owner', function() {
+    var subject = this.subject();
+    var owner = Ember.getOwner(subject);
+
+    var otherThing = owner.lookup('service:other-thing');
+    ok(otherThing.fromDefaultRegistry, 'was able to use `getOwner` on an instance and lookup an instance');
+  });
+
+  test('test context gets an owner', function() {
+    var owner = Ember.getOwner(this);
+
+    var otherThing = owner.lookup('service:other-thing');
+    ok(otherThing.fromDefaultRegistry, 'was able to use `getOwner` on test context and lookup an instance');
+  });
+
+}

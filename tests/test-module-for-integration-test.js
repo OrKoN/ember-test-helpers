@@ -1,4 +1,5 @@
 import Ember from 'ember';
+import hasEmberVersion from 'ember-test-helpers/has-ember-version';
 import { TestModuleForComponent } from 'ember-test-helpers';
 import test from 'tests/test-support/qunit-test';
 import qunitModuleFor from 'tests/test-support/qunit-module-for';
@@ -25,6 +26,13 @@ test('it can render a template', function() {
   this.render("<span>Hello</span>");
   equal(this.$('span').text(), 'Hello');
 });
+
+if (hasEmberVersion(1,11)) {
+  test('it can render a link-to', function() {
+    this.render("{{link-to 'Hi' 'index'}}");
+    ok(true, 'it renders without fail');
+  });
+}
 
 test('it complains if you try to use bare render', function() {
   var self = this;
@@ -77,6 +85,41 @@ test('it supports DOM events', function() {
   this.render('{{my-component}}');
   this.$('.target').click();
   equal(this.$('.value').text(), '1');
+});
+
+test('it supports updating an input', function() {
+  setResolverRegistry({
+    'component:my-input': Ember.TextField.extend({
+      value: null
+    })
+  });
+  this.render('{{my-input value=value}}');
+  this.$('input').val('1').change();
+  equal(this.get('value'), '1');
+});
+
+test('it supports dom triggered focus events', function() {
+  setResolverRegistry({
+    'component:my-input': Ember.TextField.extend({
+      _onInit: Ember.on('init', function() {
+        this.set('value', 'init');
+      }),
+      focusIn: function() {
+        this.set('value', 'focusin');
+      },
+      focusOut: function() {
+        this.set('value', 'focusout');
+      }
+    })
+  });
+  this.render('{{my-input}}');
+  equal(this.$('input').val(), 'init');
+
+  this.$('input').trigger('focusin');
+  equal(this.$('input').val(), 'focusin');
+
+  this.$('input').trigger('focusout');
+  equal(this.$('input').val(), 'focusout');
 });
 
 moduleForComponent('Component Integration Tests: render during setup', {
@@ -151,6 +194,84 @@ moduleForComponent('Component Integration Tests: implicit views are not deprecat
 
 test('the toplevel view is not deprecated', function () {
   expect(0);
-  (this.registry || this.container).register('component:my-toplevel', this.container.lookupFactory('view:toplevel'));
+  this.register('component:my-toplevel', this.container.lookupFactory('view:toplevel'));
   this.render("{{my-toplevel}}");
+});
+
+
+moduleForComponent('Component Integration Tests: register and inject', {
+  integration: true
+});
+
+test('can register a component', function() {
+  this.register('component:x-foo', Ember.Component.extend({
+    classNames: ['i-am-x-foo']
+  }));
+  this.render("{{x-foo}}");
+  equal(this.$('.i-am-x-foo').length, 1, "found i-am-x-foo");
+});
+
+test('can register a service', function() {
+  this.register('component:x-foo', Ember.Component.extend({
+    unicorn: Ember.inject.service(),
+    layout: Ember.Handlebars.compile('<span class="x-foo">{{unicorn.sparkliness}}</span>')
+  }));
+  this.register('service:unicorn', Ember.Component.extend({
+    sparkliness: 'extreme'
+  }));
+  this.render("{{x-foo}}");
+  equal(this.$('.x-foo').text().trim(), "extreme");
+});
+
+test('can inject a service directly into test context', function() {
+  this.register('component:x-foo', Ember.Component.extend({
+    unicorn: Ember.inject.service(),
+    layout: Ember.Handlebars.compile('<span class="x-foo">{{unicorn.sparkliness}}</span>')
+  }));
+  this.register('service:unicorn', Ember.Component.extend({
+    sparkliness: 'extreme'
+  }));
+  this.inject.service('unicorn');
+  this.render("{{x-foo}}");
+  equal(this.$('.x-foo').text().trim(), "extreme");
+  this.set('unicorn.sparkliness', 'amazing');
+  equal(this.$('.x-foo').text().trim(), "amazing");
+});
+
+test('can inject a service directly into test context, with aliased name', function() {
+  this.register('component:x-foo', Ember.Component.extend({
+    unicorn: Ember.inject.service(),
+    layout: Ember.Handlebars.compile('<span class="x-foo">{{unicorn.sparkliness}}</span>')
+  }));
+  this.register('service:unicorn', Ember.Component.extend({
+    sparkliness: 'extreme'
+  }));
+  this.inject.service('unicorn', { as: 'hornedBeast' });
+  this.render("{{x-foo}}");
+  equal(this.$('.x-foo').text().trim(), "extreme");
+  this.set('hornedBeast.sparkliness', 'amazing');
+  equal(this.$('.x-foo').text().trim(), "amazing");
+});
+
+moduleForComponent('Component Integration Tests: willDestoryElement', {
+  integration: true,
+  beforeSetup: function() {
+    setResolverRegistry({
+      'component:my-component': Ember.Component.extend({
+        willDestroyElement: function() {
+          var stateIndicatesInDOM = (this._state === 'inDOM');
+          var actuallyInDOM = Ember.$.contains(document, this.$()[0]);
+
+          ok((actuallyInDOM === true) && (actuallyInDOM === stateIndicatesInDOM), 'component should still be in the DOM');
+      }
+
+      })
+    });
+  }
+});
+
+test('still in DOM in willDestroyElement', function() {
+    expect(1);
+    this.render("{{my-component}}");
+
 });

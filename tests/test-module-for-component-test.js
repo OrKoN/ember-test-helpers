@@ -1,5 +1,6 @@
 import Ember from 'ember';
 import { TestModuleForComponent } from 'ember-test-helpers';
+import hasEmberVersion from 'ember-test-helpers/has-ember-version';
 import test from 'tests/test-support/qunit-test';
 import qunitModuleFor from 'tests/test-support/qunit-module-for';
 import { setResolverRegistry } from 'tests/test-support/resolver';
@@ -125,15 +126,17 @@ test('can lookup components in its layout', function() {
   equal(component._state, 'inDOM');
 });
 
-test('can use the component keyword in its layout', function() {
-  expect(1);
-  var component = this.subject({
-    colors: ['red', 'green', 'blue'],
-    layout: Ember.Handlebars.compile("{{component 'x-foo'}}")
+if (hasEmberVersion(1,11)) {
+  test('can use the component keyword in its layout', function() {
+    expect(1);
+    var component = this.subject({
+      colors: ['red', 'green', 'blue'],
+      layout: Ember.Handlebars.compile("{{component 'x-foo'}}")
+    });
+    this.render();
+    equal(component._state, 'inDOM');
   });
-  this.render();
-  equal(component._state, 'inDOM');
-});
+}
 
 test('clears out views from test to test', function() {
   expect(1);
@@ -237,7 +240,7 @@ moduleForComponent('changing-color', 'component:changing-color -- handles closur
   integration: true
 });
 
-if (!/^1\.(11|12)/.test(Ember.VERSION)) {
+if (hasEmberVersion(1,13)) {
   test('handles a closure actions', function() {
     expect(1);
     this.on('colorChange', function(arg) { equal(arg, 'foo'); });
